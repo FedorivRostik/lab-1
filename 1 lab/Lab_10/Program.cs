@@ -3,34 +3,45 @@ using System.Text;
 
 class Program
 {
-    // MD5 Hash Function Implementation
     public static string ComputeMD5(string input)
     {
         byte[] data = Encoding.UTF8.GetBytes(input);
-        uint[] s = { 7, 12, 17, 22, 5, 9, 14, 20, 4, 11, 16, 23, 6, 10, 15, 21 };
-        uint[] k = new uint[64];
 
+        // Значення зсувів для кожного раунду
+        int[] s = {
+            7, 12, 17, 22,  7, 12, 17, 22,  7, 12, 17, 22,  7, 12, 17, 22,
+            5,  9, 14, 20,  5,  9, 14, 20,  5,  9, 14, 20,  5,  9, 14, 20,
+            4, 11, 16, 23,  4, 11, 16, 23,  4, 11, 16, 23,  4, 11, 16, 23,
+            6, 10, 15, 21,  6, 10, 15, 21,  6, 10, 15, 21,  6, 10, 15, 21
+        };
+
+        // Константи k
+        uint[] k = new uint[64];
         for (int i = 0; i < 64; i++)
         {
-            k[i] = (uint)(Math.Abs(Math.Sin(i + 1)) * Math.Pow(2, 32));
+            k[i] = (uint)(Math.Abs(Math.Sin(i + 1)) * 4294967296); // 2^32 = 4294967296
         }
 
+        // Ініціалізація
         uint a0 = 0x67452301;
         uint b0 = 0xefcdab89;
         uint c0 = 0x98badcfe;
         uint d0 = 0x10325476;
 
-        // Padding
-        int bitLen = data.Length * 8;
+        // Додавання заповнення
+        int originalLength = data.Length;
+        int bitLen = originalLength * 8;
         int padding = (448 - bitLen % 512 + 512) % 512;
         int totalLen = bitLen + padding + 64;
 
         byte[] paddedData = new byte[totalLen / 8];
         Array.Copy(data, paddedData, data.Length);
         paddedData[data.Length] = 0x80;
+
         byte[] lengthBytes = BitConverter.GetBytes((ulong)bitLen);
         Array.Copy(lengthBytes, 0, paddedData, paddedData.Length - 8, 8);
 
+        // Обробка кожного блоку (64 байти)
         for (int i = 0; i < paddedData.Length / 64; i++)
         {
             uint[] chunk = new uint[16];
@@ -70,11 +81,11 @@ class Program
                     g = (7 * j) % 16;
                 }
 
-                F = F + A + k[j] + chunk[g];
-                A = D;
+                uint temp = D;
                 D = C;
                 C = B;
-                B = B + RotateLeft(F, (int)s[j % 4]);
+                B = B + RotateLeft(A + F + k[j] + chunk[g], s[j]);
+                A = temp;
             }
 
             a0 += A;
@@ -83,12 +94,25 @@ class Program
             d0 += D;
         }
 
-        return $"{a0:x8}{b0:x8}{c0:x8}{d0:x8}";
+        return ByteArrayToHexString(BitConverter.GetBytes(a0)) +
+               ByteArrayToHexString(BitConverter.GetBytes(b0)) +
+               ByteArrayToHexString(BitConverter.GetBytes(c0)) +
+               ByteArrayToHexString(BitConverter.GetBytes(d0));
     }
 
     public static uint RotateLeft(uint x, int n)
     {
         return (x << n) | (x >> (32 - n));
+    }
+
+    public static string ByteArrayToHexString(byte[] bytes)
+    {
+        StringBuilder sb = new StringBuilder();
+        foreach (var b in bytes)
+        {
+            sb.Append(b.ToString("x2"));
+        }
+        return sb.ToString();
     }
 
     static void Main(string[] args)
@@ -98,8 +122,5 @@ class Program
 
         string md5Hash = ComputeMD5(input);
         Console.WriteLine($"MD5 Hash: {md5Hash}");
-
-        // Implementations for SHA-1, SHA-256, and SHA-3 are not shown here due to length constraints.
-        // For full SHA-2 or SHA-3, you would follow a similar approach using the specifications for each algorithm.
     }
 }
